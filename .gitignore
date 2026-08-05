@@ -1,0 +1,4 @@
+# Go build and test outputs
+/bin/
+*.test
+coverage.out
