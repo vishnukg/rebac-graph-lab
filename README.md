@@ -73,6 +73,10 @@ You now have the complete picture: graph storage, traversal, and a working
 
 ## When the first pass feels comfortable
 
+- [Go idioms used here](docs/GO-IDIOMS.md) explains every Go-specific trick
+  in the codebase (map zero values, slice-as-queue, recursive closures, …).
+  Keep it open beside the code if the *syntax* rather than the *graph idea*
+  is ever what's blocking you.
 - [Trees and graphs](docs/TREES-VS-GRAPHS.md) answers "isn't this just a
   tree?" — short, worth reading whenever the question occurs to you.
 - [Deeper ReBAC graph ideas](docs/DEEPER-REBAC-GRAPHS.md) is five small

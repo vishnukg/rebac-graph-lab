@@ -36,8 +36,10 @@ func New() *Graph {
 	return &Graph{edges: make(map[NodeID][]Edge)}
 }
 
-// AddNode adds a node with no edges. AddEdge also adds its endpoint nodes, so
-// most callers do not need to call AddNode themselves.
+// AddNode registers a node that has no relationships yet, such as a new user
+// who has not joined any team. It also lets traversal distinguish a known
+// edgeless node from a name the graph has never seen. AddEdge adds its
+// endpoint nodes, so most callers do not need to call AddNode themselves.
 func (g *Graph) AddNode(id NodeID) {
 	if _, exists := g.edges[id]; !exists {
 		g.edges[id] = nil

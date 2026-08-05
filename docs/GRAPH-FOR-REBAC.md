@@ -9,6 +9,10 @@ It has three lessons. Each one explains an idea, then shows you the exact Go
 code in this repository that implements it. Read one lesson at a time — each
 ends with a way to check your understanding before moving on.
 
+If a line of code ever confuses you for *Go* reasons rather than *graph*
+reasons — `map[NodeID][]Edge`, the two-value map read, `var visit func(...)` —
+look it up in [the Go idioms list](GO-IDIOMS.md) and come back.
+
 The single idea behind everything here:
 
 > ReBAC answers "can this user do this?" by searching for an allowed
@@ -106,6 +110,19 @@ Two details worth noticing:
   both a `viewer_of` and an `editor_of` the same document — those are two
   different edges between the same two nodes.
 
+A fair question: why does `AddNode` exist at all, if `AddEdge` adds nodes
+automatically? Because **a thing can exist before it has any relationships**.
+A brand-new user who has not joined a team yet, or a fresh document nothing
+links to, is still a node. Registering it lets the graph tell apart two
+situations that should behave differently:
+
+- *a known node with no edges yet* — traversal starts there and finds just
+  that one node;
+- *a name the graph has never heard of* — traversal returns nothing at all.
+
+You will rarely call `AddNode` yourself, but that distinction is why it is
+part of the API.
+
 One more idiom: `Neighbors` returns a **copy** of the edge slice, so a caller
 who modifies the returned slice cannot corrupt the graph by accident. Handing
 out your internal slice is a classic Go leak; the copy prevents it.
@@ -147,52 +164,100 @@ All the traversals in this project run on graphs like this one, from
 
 Every edge points downward except the last one, which loops back up.
 
-### Breadth-first search (BFS): near before far
+### Breadth-first search (BFS): explore in rings
 
-BFS visits the start node, then everything one edge away, then everything two
-edges away. It manages "what to visit next" with a **queue** (first in, first
-out) and a **visited** set so nothing is visited twice.
+First, the goal — before any code. Group the example graph's nodes by their
+distance from A:
 
-From `graph.go`:
+```text
+distance 0:  A        (the start)
+distance 1:  B, C     (one edge away)
+distance 2:  D        (two edges away)
+```
+
+BFS promises to visit nodes in exactly that order — A, then B and C, then D —
+like ripples spreading from a stone dropped in water. Never a far node before
+a nearer one.
+
+To keep that promise, BFS maintains two pieces of bookkeeping:
+
+- a **to-do line** (a *queue*): new nodes join the **back**, and the next
+  node to visit is taken from the **front**, like a checkout line;
+- a **seen set** (called *visited* in the code): every node that has ever
+  joined the line, so no node gets in line twice.
+
+Then it repeats one move until the line is empty: **take the front node,
+record it, and put its never-seen neighbors at the back.** Walk it by hand,
+starting with A in line:
+
+```text
+                                                 line (front first)   recorded order
+start: A is in line                              [A]
+1. Take A. Neighbors B, C are new — line up      [B, C]               A
+2. Take B. Neighbor D is new — line it up        [C, D]               A, B
+3. Take C. Neighbor D is already seen — skip     [D]                  A, B, C
+4. Take D. Neighbor A is already seen — skip     []                   A, B, C, D
+```
+
+The line is empty, so the result is `[A B C D]`. The level-by-level order
+falls out for one reason only: new discoveries join the **back** of the line,
+so everything at distance 1 is taken before anything at distance 2.
+
+Step 4 is also the cycle defence in action. D's edge points back to A, but A
+is in the seen set, so it is skipped. **That single check is the entire
+protection** — without it, the loop A → B → D → A would run forever.
+
+Now the real code from `graph.go` — the same moves in Go spelling:
 
 ```go
 visited := map[NodeID]bool{start: true}
-queue := []NodeID{start}
+queue := []NodeID{start}          // the to-do line
 order := make([]NodeID, 0)
 
 for len(queue) > 0 {
-    current := queue[0]      // take from the front...
-    queue = queue[1:]        // ...of the queue
+    current := queue[0]           // take from the front...
+    queue = queue[1:]             // ...of the line
     order = append(order, current)
 
     for _, edge := range g.edges[current] {
         if !visited[edge.To] {
-            visited[edge.To] = true // Mark when queued to prevent duplicates.
-            queue = append(queue, edge.To)
+            visited[edge.To] = true          // mark as seen when lined up,
+            queue = append(queue, edge.To)   // then join the back
         }
     }
 }
 ```
 
-Go has no queue type; a slice with `queue[0]` / `queue = queue[1:]` is the
-standard small-scale substitute. Now trace `BFS("A")` on the graph above,
-one loop iteration per row:
+(Go has no queue type; taking `queue[0]` and re-slicing with `queue[1:]` is
+the standard small-scale substitute.) One subtlety: a node is marked seen
+when it **joins** the line, not when it is taken off. Look at step 3 of the
+hand-trace — B and C both point at D, and marking early is what stops D from
+being lined up twice.
 
-| take from queue | its unvisited neighbors | queue afterwards | order so far |
-|-----------------|-------------------------|------------------|--------------|
-| A               | B, C                    | B, C             | A            |
-| B               | D                       | C, D             | A, B         |
-| C               | (D already visited)     | D                | A, B, C      |
-| D               | (A already visited)     | *empty*          | A, B, C, D   |
+### Depth-first search (DFS): one path to the end, then back up
 
-Result: `[A B C D]` — level by level. Notice the last row: D's edge back to A
-is simply skipped because A is in `visited`. **That single check is the entire
-cycle defence.** Without it, the loop A → B → D → A would run forever.
+DFS explores the way you would explore a maze: at every junction, take the
+first unexplored corridor and keep going **deeper**. When you hit a dead end,
+walk back to the previous junction and try its next corridor. On the example
+graph, starting at A:
 
-### Depth-first search (DFS): follow one branch to the end
+```text
+A's first edge goes to B ............ go deeper    recorded: A, B
+B's only edge goes to D ............. go deeper    recorded: A, B, D
+D's edge goes to A — already seen ... dead end, walk back to B
+B has no more edges ................. walk back to A
+A's next edge goes to C ............. go deeper    recorded: A, B, D, C
+C's edge goes to D — already seen ... dead end, nothing left anywhere
+```
 
-DFS goes as deep as it can down one branch before backtracking. The natural
-implementation is recursion — the call stack remembers the way back:
+Result: `[A B D C]`. The entire B-branch is finished before C is ever
+touched — that is the "depth-first" in the name.
+
+Now notice what "walk back to the previous junction" requires: something must
+*remember* every junction you passed and which corridors are still untried.
+Recursion provides that memory for free. Each function call remembers where
+it was standing; when a call returns, you are automatically back at the
+previous node, in front of its next edge:
 
 ```go
 var visit func(NodeID)
@@ -202,7 +267,7 @@ visit = func(current NodeID) {
 
     for _, edge := range g.edges[current] {
         if !visited[edge.To] {
-            visit(edge.To)
+            visit(edge.To)   // go deeper; returning = walking back
         }
     }
 }
@@ -210,19 +275,23 @@ visit(start)
 ```
 
 (The two-step `var visit func(NodeID)` declaration is how a Go closure calls
-itself.) Trace `DFS("A")`:
+itself — see [the Go idioms list](GO-IDIOMS.md).) Here is the same trace
+again, written as the calls nest — each indent is one step deeper into the
+maze, and un-indenting is the walk back:
 
 ```text
 visit A          order: A
   visit B        order: A, B         (A's first edge)
     visit D      order: A, B, D      (B's only edge)
-      D -> A     skipped, A visited
+      D -> A     skipped, already seen — the cycle defence again
   visit C        order: A, B, D, C   (back at A, its second edge)
-    C -> D       skipped, D visited
+    C -> D       skipped, already seen
 ```
 
-Result: `[A B D C]`. Same four nodes as BFS, different order: BFS spreads
-out, DFS dives down.
+**BFS and DFS side by side:** both visit the same four nodes, and both rely
+on the same seen-set to survive the cycle. The only difference is the order:
+BFS spreads outward in rings (driven by a queue), DFS probes one full path at
+a time (driven by recursion).
 
 ### From "visit everything" to "find a path"
 
@@ -241,7 +310,7 @@ go test -v ./internal/graph
 
 ### Check yourself
 
-- Cover the tables above and predict `BFS("A")` and `DFS("A")` yourself.
+- Cover the traces above and predict `BFS("A")` and `DFS("A")` yourself.
 - In BFS, why is a node marked visited when it is *queued* rather than when
   it is *dequeued*? (Hint: two nodes both point at D.)
 - What exactly stops traversal from looping around the D → A edge forever?
