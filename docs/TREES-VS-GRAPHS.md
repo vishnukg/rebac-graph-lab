@@ -1,15 +1,17 @@
 # Trees and graphs
 
+A common question while learning this material: "isn't this just a tree?"
+
 ## The short answer
 
-A tree is a special kind of graph.
+A tree is a special, restricted kind of graph.
 
 ```text
 Every tree is a graph.
 Not every graph is a tree.
 ```
 
-## A tree
+## What makes a tree a tree
 
 ```text
         Company
@@ -19,13 +21,13 @@ Not every graph is a tree.
  Alice   Bob
 ```
 
-In a tree:
+A tree obeys three rules:
 
-- there are no loops;
+- no loops;
 - everything is connected;
-- there is only one path between two nodes.
+- there is exactly **one** path between any two nodes.
 
-Folder hierarchies are often trees:
+That last rule is the important one here. Folder hierarchies usually qualify:
 
 ```text
 root folder
@@ -33,7 +35,12 @@ root folder
     └── roadmap document
 ```
 
-## A general graph
+Every document lives in exactly one place, so there is exactly one path from
+the root to it.
+
+## What real permission data looks like
+
+Now look at the graph from this project's tests:
 
 ```text
 Alice --member_of--> Engineering
@@ -43,19 +50,22 @@ viewer_of             editor_of
   +-----> Roadmap <-------+
 ```
 
-This is not a tree. Alice has two different paths to the Roadmap.
+Alice reaches the Roadmap two different ways: directly as a viewer, and
+indirectly through her team. Two paths between the same two nodes — so this
+is not a tree, and no amount of rearranging will make it one.
 
-A general graph may have several paths, crossed connections, or loops.
+This is the normal case, not the exception. A user joins several teams. A
+team can edit several folders. A document has both direct and inherited
+access. Relationships overlap, and overlapping relationships are exactly what
+a general graph can express and a tree cannot.
 
-## Why ReBAC uses a graph
+## Both can be true at once
 
-A user can join several teams. A team can access several documents. A document
-can have both direct and inherited access. These overlapping relationships do
-not fit into one tree.
+One *part* of a system may still be tree-shaped — the folder hierarchy in
+this project is a tree on its own. But folders plus users plus teams plus
+relationships, taken together, form a graph. That is why the code in
+`internal/graph` implements a graph and not a tree: the general structure
+handles the tree-shaped parts for free, but not the other way around.
 
-One part of a system, such as its folders, may still be tree-shaped. But all the
-users, teams, resources, and relationships together form a graph.
-
-Remember:
-
-> A tree describes one hierarchy. A graph can describe many overlapping relationships.
+> A tree describes one hierarchy.
+> A graph describes many overlapping relationships.
