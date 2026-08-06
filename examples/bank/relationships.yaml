@@ -1,0 +1,28 @@
+# Relationships: things we know are true, in (subject, relation, resource)
+# form. Each one becomes a directed, labelled edge: subject --relation--> resource.
+relationships:
+  - subject: user:ed
+    relation: employee
+    resource: org:acme
+
+  # Ed can access the day-to-day account directly.
+  - subject: user:ed
+    relation: accessor
+    resource: bankaccount:daytoday
+
+  # The day-to-day account belongs to Acme. Note the direction: the child
+  # (account) holds the edge, pointing at its parent (org) — see
+  # "Modeling conventions" in docs/POLICY-RULES.md for why.
+  - subject: bankaccount:daytoday
+    relation: org
+    resource: org:acme
+
+  # Ben is an admin of Acme, not a direct accessor of any account.
+  - subject: user:ben
+    relation: admin
+    resource: org:acme
+
+  # Carol is just an employee, with no accessor or admin relation.
+  - subject: user:carol
+    relation: employee
+    resource: org:acme

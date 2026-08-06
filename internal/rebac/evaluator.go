@@ -9,7 +9,7 @@ import (
 	"example.com/rebac-graph-lab/internal/graph"
 )
 
-// Rule is a relationship path that grants a permission.
+// Rule is a relationship path that grants an action.
 // Example: member_of -> editor_of grants "edit".
 type Rule []string
 
@@ -34,19 +34,19 @@ func NewEvaluator(g *graph.Graph) *Evaluator {
 	}
 }
 
-// AddRule says that a permission is granted by this exact relationship path.
-// Multiple rules may grant the same permission.
-func (e *Evaluator) AddRule(permission string, relations ...string) {
+// AddRule says that an action is granted by this exact relationship path.
+// Multiple rules may grant the same action.
+func (e *Evaluator) AddRule(action string, relations ...string) {
 	// Copy the slice so a caller cannot change the rule after adding it.
 	rule := append(Rule(nil), relations...)
-	e.rules[permission] = append(e.rules[permission], rule)
+	e.rules[action] = append(e.rules[action], rule)
 }
 
-// Check asks: "Can this subject perform this permission on this resource?"
-func (e *Evaluator) Check(subject graph.NodeID, permission string, resource graph.NodeID) Decision {
-	rules := e.rules[permission]
+// Check asks: "Can this subject perform this action on this resource?"
+func (e *Evaluator) Check(subject graph.NodeID, action string, resource graph.NodeID) Decision {
+	rules := e.rules[action]
 	if len(rules) == 0 {
-		return Decision{Reason: fmt.Sprintf("denied: permission %q has no rules", permission)}
+		return Decision{Reason: fmt.Sprintf("denied: action %q has no rules", action)}
 	}
 
 	for _, rule := range rules {

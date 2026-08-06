@@ -1,0 +1,25 @@
+# Policy: which relation paths satisfy which actions, per object type.
+# check(subject, action, resource) looks up resource's type, finds the
+# matching action, and tries each rule until one matches.
+#
+# An action is not a grant. "Ben has the admin role" is a relationship, in
+# relationships.yaml. "access" below is just the rule for reading that
+# relationship back: given who has what relation right now, is this
+# subject allowed to do this?
+types:
+  org:
+    relations: [employee, admin]
+
+  bankaccount:
+    relations: [accessor, org]
+    actions:
+      access:
+        # Rule 1 ("this"): a direct accessor relation is enough.
+        - this: accessor
+
+        # Rule 2 ("via_relationship"): follow this account's "org" edge to
+        # its org, then check whether the subject has an "admin" edge to
+        # that same org. Admins can access every account in their org.
+        - via_relationship:
+            through: org
+            requires: admin
