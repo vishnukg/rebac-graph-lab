@@ -134,6 +134,9 @@ cmd/policy-demo/main.go Runnable example using YAML relationships and policy
 docs/                   Short lessons and optional deeper experiments
 ```
 
+If a line of code is confusing for *Go* reasons rather than graph reasons,
+see [the Go idioms guide](docs/GO-IDIOMS.md).
+
 ## Try these exercises
 
 Do one at a time:
