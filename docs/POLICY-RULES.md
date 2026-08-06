@@ -17,6 +17,52 @@ and **rules as data**. It is still the same graph from Session 1 — nodes,
 directed labelled edges, and a walk over them. Nothing new in graph theory,
 only in how the rules that guide the walk are written down.
 
+## Two files, two jobs
+
+Session 4 splits authorization into two YAML files, and the split is the
+lesson:
+
+- **`relationships.yaml` holds what is true.** Who relates to whom, right
+  now: Ed is an accessor of the account, Ben is an admin of Acme, the
+  account belongs to Acme. Each line is one graph edge and nothing more.
+  Relationships carry no opinion about access — an `admin` edge does not
+  say what an admin may do.
+- **`policy.yaml` holds what it means.** Which relations exist per type,
+  and which paths through them satisfy each action. The policy contains no
+  users, no accounts, no orgs — it never mentions Ed or Acme. It only
+  describes path *shapes*: "a direct `accessor` edge grants `access`,"
+  "an `admin` edge into the account's org grants `access`."
+
+The graph walk needs both, and they answer different questions. The
+relationships are the **terrain**: the nodes and edges the walker can
+actually step on. The policy is the **map legend**: which of the many
+possible paths across that terrain count as proof of access. A walk with
+no terrain finds nothing; a walk with no legend cannot tell an
+authorizing path (`accessor`) from an irrelevant one (`follows`).
+
+The proof that they are genuinely separate: change one without the other
+and watch `check` flip.
+
+- Delete the `via_relationship` rule from the policy. Ben still "has the
+  admin role" — his `admin` edge is untouched in `relationships.yaml` —
+  but `check(user:ben, access, ...)` now denies. The fact survived; its
+  *meaning* was revoked.
+- Delete Ben's `admin` edge instead. The policy still says org admins get
+  access, but the walk finds no edge to stand on, so it denies. The
+  meaning survived; the fact is gone.
+
+Access exists only where the two meet: a real path in the terrain whose
+shape the legend accepts.
+
+The split also matches who changes each file, and how often. Relationships
+change constantly and are written by the application at runtime — every
+account opened, employee hired, or role granted adds or removes edges.
+Policy changes rarely and deliberately — it is authorization *design*,
+reviewed like code, and one rule edit changes what every matching edge in
+the graph means. Keeping them separate means the fast-changing data never
+requires re-reviewing the rules, and a rule change never requires touching
+the data.
+
 ## Relationships: subject, relation, resource
 
 A relationship is the same thing you already met in Session 1, written as
@@ -248,7 +294,7 @@ bankaccount:daytoday --org--> org:acme <--admin-- user:ben
 If Ben were an admin of a *different* org, the first hop would still land
 on `org:acme`, the second hop would look for an `admin` edge from Ben to
 `org:acme` specifically, not find one, and the rule would not match —
-exactly the case Exercise 2 below asks you to prove.
+exactly the case Exercise 3 below asks you to prove.
 
 See [`examples/bank/policy.yaml`](../examples/bank/policy.yaml).
 
@@ -314,7 +360,7 @@ recurses; `this` has no loop at all; `via_relationship` has one loop of
 allowed path connect subject to resource?" — with progressively less
 freedom about where the path may go. That lack of freedom is exactly what
 makes the policy evaluator fast and predictable, and it is what you give
-up first when rules need recursion again (see Exercise 3).
+up first when rules need recursion again (see Exercise 4).
 
 You can watch the degenerate walks happen: `cmd/policy-demo` prints each
 edge the evaluator walked, in order —
@@ -368,11 +414,16 @@ namespace config validation. Those are natural next steps once `this` and
 
 ## Try these exercises
 
-1. Add a `viewer` relation and a `view` action that any org employee
+1. Run the two experiments from "Two files, two jobs": first delete the
+   `via_relationship` rule from `policy.yaml` and run the demo (Ben should
+   flip to denied while his `admin` edge still exists), then restore it
+   and delete Ben's `admin` edge from `relationships.yaml` instead (same
+   flip, opposite cause). Predict each output before running.
+2. Add a `viewer` relation and a `view` action that any org employee
    satisfies (hint: `through: org`, `requires: employee`).
-2. Add a second bank account belonging to a different org, and a rule
+3. Add a second bank account belonging to a different org, and a rule
    proving an admin of Acme cannot access it.
-3. `via_relationship` only follows one hop. Sketch (in comments, no code
+4. `via_relationship` only follows one hop. Sketch (in comments, no code
    needed) what a *second* level of indirection would require — for
    example, an admin role inherited from a parent company that owns
    several orgs. (Hint: this is the same shape of problem Session 3's
