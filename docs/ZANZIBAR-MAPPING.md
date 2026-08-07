@@ -30,4 +30,5 @@ first pass small: `union`/`intersection`/`exclusion` combinators for rules
 wins), userset subjects in `via_relationship` (so no "is a member of the
 subject's group" style checks beyond the one built-in indirection), and
 namespace config validation. Those are natural next steps once `this` and
-`via_relationship` feel familiar.
+`via_relationship` feel familiar — each is explained, in this repo's
+vocabulary, in [What production ReBAC adds](PRODUCTION-FEATURES.md).

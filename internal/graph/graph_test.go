@@ -62,6 +62,59 @@ func TestDFSExploresOneBranchFirstAndHandlesCycles(t *testing.T) {
 	}
 }
 
+// A deeper graph shows the orders diverging: BFS visits the shallow C
+// before the deep D and E, while DFS dives to E before touching C.
+//
+//	A --> B --> D --> E
+//	 \
+//	  --> C
+func deepGraph() *Graph {
+	g := New()
+	g.AddEdge("A", "knows", "B")
+	g.AddEdge("A", "knows", "C")
+	g.AddEdge("B", "knows", "D")
+	g.AddEdge("D", "knows", "E")
+	return g
+}
+
+func TestBFSVisitsShallowNodesBeforeDeepOnes(t *testing.T) {
+	g := deepGraph()
+
+	got := g.BFS("A")
+
+	want := []NodeID{"A", "B", "C", "D", "E"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("BFS(A) = %v, want %v", got, want)
+	}
+}
+
+func TestDFSFinishesABranchBeforeStartingTheNext(t *testing.T) {
+	g := deepGraph()
+
+	got := g.DFS("A")
+
+	want := []NodeID{"A", "B", "D", "E", "C"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("DFS(A) = %v, want %v", got, want)
+	}
+}
+
+func TestTraversalOfAnEdgelessNodeVisitsJustThatNode(t *testing.T) {
+	g := New()
+	g.AddNode("lonely")
+
+	bfs := g.BFS("lonely")
+	dfs := g.DFS("lonely")
+
+	want := []NodeID{"lonely"}
+	if !reflect.DeepEqual(bfs, want) {
+		t.Fatalf("BFS(lonely) = %v, want %v", bfs, want)
+	}
+	if !reflect.DeepEqual(dfs, want) {
+		t.Fatalf("DFS(lonely) = %v, want %v", dfs, want)
+	}
+}
+
 func TestFindPathReturnsAShortestPath(t *testing.T) {
 	g := learningGraph()
 

@@ -69,8 +69,23 @@ func (g *Graph) Neighbors(id NodeID) []Edge {
 	return result
 }
 
-// BFS visits nodes breadth-first: first the start, then all nodes one edge
-// away, then all nodes two edges away, and so on.
+// BFS visits nodes breadth-first: first the start, then every node one edge
+// away, then every node two edges away, and so on. Nodes the same number of
+// edges from the start form a "level", and BFS finishes each level before
+// starting the next.
+//
+// The queue (first in, first out) is what makes it breadth-first: nodes
+// discovered early are visited before nodes discovered later. On the graph
+// A->B, A->C, B->D, C->E, D->A the queue evolves like this:
+//
+//	visit A   queue [B C]   A's neighbors join the queue
+//	visit B   queue [C D]   D lines up behind C, which was found first
+//	visit C   queue [D E]
+//	visit D   queue [E]     D's edge back to A is skipped: A is visited
+//	visit E   queue []      done: [A B C D E], level by level
+//
+// Every node is queued at most once and every edge is examined at most once,
+// so the work grows linearly with graph size: O(nodes + edges).
 func (g *Graph) BFS(start NodeID) []NodeID {
 	if _, exists := g.edges[start]; !exists {
 		return nil
@@ -81,13 +96,17 @@ func (g *Graph) BFS(start NodeID) []NodeID {
 	order := make([]NodeID, 0)
 
 	for len(queue) > 0 {
+		// Take the oldest waiting node from the front of the queue.
 		current := queue[0]
 		queue = queue[1:]
 		order = append(order, current)
 
 		for _, edge := range g.edges[current] {
 			if !visited[edge.To] {
-				visited[edge.To] = true // Mark when queued to prevent duplicates.
+				// Mark when queued, not when visited. Otherwise two nodes
+				// that share a neighbor could both queue it before either
+				// visit happens, and it would appear in the result twice.
+				visited[edge.To] = true
 				queue = append(queue, edge.To)
 			}
 		}
@@ -96,7 +115,25 @@ func (g *Graph) BFS(start NodeID) []NodeID {
 	return order
 }
 
-// DFS visits one branch as deeply as possible before backtracking.
+// DFS visits nodes depth-first: it follows one branch as far as it can, then
+// backs up to the most recent fork and tries that fork's next branch.
+//
+// Where BFS uses a queue, DFS uses a stack (last in, first out). This
+// implementation does not build one by hand: each recursive visit call pushes
+// a frame onto Go's call stack, and the "back up" step is simply the function
+// returning. On the graph A->B, A->C, B->D, C->E, D->A:
+//
+//	visit A         start
+//	 visit B        follow A's first edge
+//	  visit D       follow B's first edge
+//	                D's edge back to A is skipped: A is visited
+//	 visit C        D and B are exhausted, so back up and try A's next edge
+//	  visit E
+//
+// Result: [A B D C E]. Compare BFS's [A B C D E] — the same nodes, but DFS
+// reaches the deep node D before the shallow node C.
+//
+// Like BFS, DFS handles every node and edge at most once: O(nodes + edges).
 func (g *Graph) DFS(start NodeID) []NodeID {
 	if _, exists := g.edges[start]; !exists {
 		return nil
@@ -107,6 +144,8 @@ func (g *Graph) DFS(start NodeID) []NodeID {
 
 	var visit func(NodeID)
 	visit = func(current NodeID) {
+		// Marking on entry means a node reachable along two branches, or
+		// through a cycle back to an ancestor, is visited exactly once.
 		visited[current] = true
 		order = append(order, current)
 

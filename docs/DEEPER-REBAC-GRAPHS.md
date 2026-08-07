@@ -78,7 +78,8 @@ detection and a maximum search depth.
 
 BFS explores nearby nodes first. That makes it useful when you want the path
 with the fewest edges. DFS explores one branch first and can be simple when you
-only need to find any matching path.
+only need to find any matching path. ([Session 2](02-TRAVERSAL.md) traces
+both orders step by step — this section adds only the production angle.)
 
 For `V` visited nodes and `E` examined edges, ordinary BFS and DFS take roughly
 `V + E` work. You do not need to calculate this. The useful idea is simply:
@@ -107,6 +108,9 @@ Full ReBAC systems can also express:
 Those features combine graph searches with logical rules. The graph foundation
 does not change: nodes represent things, labelled edges represent relationships,
 and evaluation searches for evidence connecting a subject to a resource.
+Each of these features — and the operational machinery real systems add
+around them — is documented in
+[What production ReBAC adds](PRODUCTION-FEATURES.md).
 
 ## You have understood it when...
 

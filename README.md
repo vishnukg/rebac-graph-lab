@@ -144,6 +144,12 @@ experiments to cover multiple paths, nested groups, cycles, search cost, and the
 limits of this learning evaluator. It is intentionally separate so you do not
 need to absorb everything on day one.
 
+Then, to see exactly what separates this lab from a real authorization
+service, read [What production ReBAC adds](docs/PRODUCTION-FEATURES.md) —
+rule combinators, userset subjects, recursion, reverse queries,
+consistency, and operational safety, each explained in this repo's
+vocabulary.
+
 ## Files
 
 ```text
