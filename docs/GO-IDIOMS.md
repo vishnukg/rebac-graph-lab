@@ -154,4 +154,5 @@ security default line up: you cannot forget to deny.
 
 That is every idiom this codebase relies on. If a line is still confusing
 after this list, the confusion is probably about the graph algorithm — which
-is [the main guide](GRAPH-FOR-REBAC.md)'s job to fix.
+is the session docs' job to fix, starting from
+[Session 1](01-GRAPH-BASICS.md).

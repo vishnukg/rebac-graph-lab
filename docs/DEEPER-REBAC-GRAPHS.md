@@ -1,6 +1,6 @@
 # Deeper ReBAC graph ideas
 
-Read this only after the four short sessions in the README. Each section is a
+Read this only after the five short sessions in the README. Each section is a
 small experiment, not a new chapter to memorize.
 
 ## 1. One resource can have several paths

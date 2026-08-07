@@ -12,7 +12,7 @@ relationships:
 
   # The day-to-day account belongs to Acme. Note the direction: the child
   # (account) holds the edge, pointing at its parent (org) — see
-  # "Modeling conventions" in docs/POLICY-RULES.md for why.
+  # "Modeling conventions" in docs/04-RELATIONSHIPS-AS-DATA.md for why.
   - subject: bankaccount:daytoday
     relation: org
     resource: org:acme
