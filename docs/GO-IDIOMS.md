@@ -150,6 +150,132 @@ for bools, `nil` for slices. So a `Decision` that only sets `Reason` is
 automatically `Allowed: false` with no path. The language default and the
 security default line up: you cannot forget to deny.
 
+## 10. Capitalization is visibility
+
+```go
+type Relationship struct { ... }      // exported: usable from other packages
+type relationshipsFile struct { ... } // unexported: private to this package
+
+func LoadPolicy(...)                  // exported
+func typeOf(...)                      // unexported helper
+```
+
+Go has no `public` or `private` keywords. The first letter decides: an
+uppercase name is visible outside its package, a lowercase one is not. So
+`internal/policy` exports `Relationship`, `LoadRelationships`, and `Check`
+as its API, while `relationshipsFile`, `tryRule`, `hasEdge`, and `typeOf`
+are implementation details no other package can touch. The same rule
+applies to struct fields — which is why every field the YAML loader must
+fill starts with a capital letter.
+
+## 11. Struct tags tell the YAML loader what to do
+
+```go
+type ViaRelationship struct {
+    Through  string `yaml:"through"`
+    Requires string `yaml:"requires"`
+}
+```
+
+The backtick string after a field is a **struct tag** — metadata the
+compiler ignores but libraries read. Here `yaml:"through"` tells the YAML
+library which key in the file fills which field (needed because the YAML
+key is lowercase and the Go field, per idiom 10, cannot be).
+`yaml:"this,omitempty"` adds "and skip this field when writing YAML if it
+is empty."
+
+The loading call completes the picture:
+
+```go
+var p Policy
+if err := yaml.Unmarshal(data, &p); err != nil { ... }
+```
+
+`&p` passes a *pointer* to the empty struct so the library can fill it in
+place — the same reason `AddEdge` needs a pointer receiver in idiom 8.
+
+## 12. A nil pointer field means "this part is absent"
+
+```go
+type Rule struct {
+    This            string           `yaml:"this,omitempty"`
+    ViaRelationship *ViaRelationship `yaml:"via_relationship,omitempty"`
+}
+
+if rule.ViaRelationship != nil { ... }
+```
+
+`ViaRelationship` is a *pointer* to a struct, not a struct, precisely so it
+can be `nil`. A plain struct field always exists (zero-valued), which
+cannot express "the YAML file had no `via_relationship:` key at all." A
+pointer can: absent key → `nil` → the evaluator checks `!= nil` to decide
+whether that half of the rule exists. The `This` field gets away with a
+plain string because its zero value `""` never collides with a real
+relation name.
+
+## 13. Errors are values, returned and checked
+
+```go
+func LoadPolicy(path string) (*Policy, error) {
+    data, err := os.ReadFile(path)
+    if err != nil {
+        return nil, err
+    }
+    ...
+}
+```
+
+Go has no exceptions. A function that can fail returns an `error` as its
+last result, and the caller checks it immediately — the `if err != nil {
+return ..., err }` block you see after nearly every fallible call. It is
+idiom 4 (multiple return values) with `error` in place of `bool`, used
+when the caller needs to know *why* it failed, not just *that* it failed.
+The one-line form combines the call and the check:
+
+```go
+if err := yaml.Unmarshal(data, &f); err != nil {
+```
+
+The `if` statement runs a short statement first, then tests the
+condition — the same shape as idiom 3's comma-ok test, and as `typeOf`'s
+`if i := strings.Index(s, ":"); i >= 0`.
+
+## 14. Variadic parameters: `...` collects and spreads
+
+```go
+func (e *Evaluator) AddRule(action string, relations ...string) {
+    rule := append(Rule(nil), relations...)
+```
+
+`relations ...string` means "accept any number of string arguments" —
+`AddRule("edit", "member_of", "editor_of", "contains")` — and inside the
+function `relations` is an ordinary `[]string`. The same three dots on the
+*other* side, `relations...`, does the reverse: it spreads a slice out
+into individual arguments (here feeding `append` one element at a time,
+as part of idiom 6's copy-on-the-way-in).
+
+## 15. An anonymous struct for a throwaway table
+
+```go
+checks := []struct {
+    subject  graph.NodeID
+    action   string
+    resource graph.NodeID
+}{
+    {"user:ed", "access", "bankaccount:daytoday"},
+    {"user:ben", "access", "bankaccount:daytoday"},
+    {"user:carol", "access", "bankaccount:daytoday"},
+}
+
+for _, c := range checks { ... }
+```
+
+The struct type is declared inline, without a name, because it is used in
+exactly one place: a table of cases to loop over. Naming it would suggest
+it matters beyond this list. You will meet this shape constantly in Go —
+it is the standard way to write table-driven tests and demos: define the
+rows, range over them, run the same code for each.
+
 ---
 
 That is every idiom this codebase relies on. If a line is still confusing
